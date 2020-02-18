@@ -1,3 +1,6 @@
+#The functions provide Gaussian smoothing and scaling for 16 S fraction high resolution repli-seq. The input is a 16 row array aranged from S1 to S16.
+
+
 def gausssmoothing (rawcoveragematrix,shape=(3,3),sigma=1):
     def gaussfilt2D(shape=shape,sigma=sigma):
         m,n=[(edge-1)/2 for edge in shape]
