@@ -1,0 +1,29 @@
+def gausssmoothing (rawcoveragematrix,shape=(3,3),sigma=1):
+    def gaussfilt2D(shape=shape,sigma=sigma):
+        m,n=[(edge-1)/2 for edge in shape]
+        y,x = np.ogrid[-m:m+1,-n:n+1]
+        array=np.exp(-(x*x+y*y)/(2*sigma*sigma))
+        array[array<np.finfo(array.dtype).eps * array.max()] =0
+        sumarray=array.sum()
+        if sumarray !=0:
+            array/=sumarray
+        return array
+    avmatrix=np.zeros_like(rawcoveragematrix)
+
+    paddedrawcoveragematrix=np.concatenate((np.array([rawcoveragematrix[2,:] for i in range(int((shape[0]-1)/2))]),rawcoveragematrix,np.array([rawcoveragematrix[-1,:] for i in range(int((shape[0]-1)/2))])))
+    paddedrawcoveragematrix=np.pad(paddedrawcoveragematrix,((0,0),(int((shape[0]-1)/2),int((shape[0]-1)/2))),'constant',constant_values=np.nan)
+    for i in range(int((shape[0]-1)/2),int(len(rawcoveragematrix)+(shape[0]-1)/2)):
+        print (i,'i')
+        for j in range(int((shape[0]-1)/2),int(len(rawcoveragematrix[0])+(shape[0]-1)/2)):
+            box=np.ma.masked_invalid(paddedrawcoveragematrix[int(i-(shape[0]-1)/2):int(i+(shape[0]-1)/2+1),int(j-(shape[0]-1)/2):int(j+(shape[0]-1)/2+1)])
+            
+            avmatrix[int(i-(shape[0]-1)/2),int(j-(shape[0]-1)/2)] = np.nansum(np.multiply(box,gaussfilt2D()))
+    return (avmatrix)
+
+
+def scalingto100range(input):
+    a_scaled=np.zeros_like(input)
+    for i in range(0,len(input)):
+        for j in range (len(input[i])):
+            a_scaled[i][j]=(input[i][j]/np.sum(input[:,j]))*100
+    return (a_scaled)
