@@ -1,1 +1,3 @@
-This directory contains the code for processing high resolution repliseq data from RPM bedgraphs. The input takes bedgraph files of S phase fractions S1 to S16. The output is a Gaussian smoothed, column-sum normalised data array that are sorted row-wise from S1 to S16 and column-wise by bins. This data array is the basis of further calculation such as Twidth, delta RT etc.
+# High Resolution Repli-seq
+## overview
+This directory contains codes used in [Zhao, Sasaki 2020](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-020-01983-8) for processing high resolution repli-seq data by constructing column-scaled, Gaussian smoothed Repli-Seq data arrays and replication feature extraction (initiation zones, timing transition zones, etc) from these arrays. 
