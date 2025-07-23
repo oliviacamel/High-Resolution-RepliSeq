@@ -191,4 +191,5 @@ if __name__ == "__main__":
     if args.feature_type not in ['IZ', 'rightwardTTR']:
         print(f"Error: Invalid feature_type '{args.feature_type}'. Options are 'IZ' or 'rightwardTTR'.", file=sys.stderr)
         sys.exit(1)
-main(args.filename, n_clusters=args.n_clusters, threshold=args.threshold, feature_type=args.feature_type)
+
+    main(args.filename, n_clusters=args.n_clusters, threshold=args.threshold, feature_type=args.feature_type)
