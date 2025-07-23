@@ -96,6 +96,47 @@ def find_peaks(ArgMaxArr):
 
     return plateaus
 
+
+def find_valleys(ArgMaxArr):
+    """
+    Identifies valleys in an index array of argmax of birch model subcluster centers
+    
+    Parameters:
+    - ArgMaxArr (array-like): Input 1D array representing the S phase fraction of max signal for a given genomic bin.
+    
+    Returns:
+    - list: list of indices for termination sites and zones
+    """
+    ArgMaxArr = np.array(ArgMaxArr)
+    plateaus = []
+    start = None
+
+    for i in range(1, len(ArgMaxArr)):
+        if ArgMaxArr[i] == ArgMaxArr[i - 1]:
+            if start is None:
+                start = i - 1
+        else:
+            if start is not None:
+                end = i - 1
+                left_upper = start == 0 or ArgMaxArr[start - 1] > ArgMaxArr[start]
+                right_upper = i == len(ArgMaxArr) or ArgMaxArr[i] > ArgMaxArr[start]
+
+                if left_upper and right_upper:
+                    plateaus.append([start,end])
+
+                start = None
+        #allow single-bin termination sites
+        if (i == 0 or ArgMaxArr[i - 1] > ArgMaxArr[i]) and (i == len(ArgMaxArr) - 1 or ArgMaxArr[i + 1] > ArgMaxArr[i]):
+            plateaus.append([i, i])
+    if start is not None:
+        left_upper = start == 0 or ArgMaxArr[start - 1] < ArgMaxArr[start]
+        right_upper = ArgMaxArr[-1] < ArgMaxArr[start]
+        if left_upper and right_upper:
+            plateaus.append([start,len(ArgMaxArr)-1])
+
+    return plateaus
+
+
 def find_rightward_slopes(ArgMaxArr):
     """
     Identifies rightward slopes in a 1D NumPy array.
@@ -153,7 +194,7 @@ def main(filename, n_clusters=None, threshold=0.5,feature_type = 'IZ'):
     - filename (str): Path to the .npy file containing the input array, assuming the array is a scaled repli-seq array for a single chromosome with shape (n Sphase fractions, genomic bins)
     - n_clusters (int, optional): Number of clusters for Birch clustering.
     - threshold (float, optional): Threshold for Birch clustering.
-    - feature_type (str, optional): Type of feature to call. Options are 'IZ' or 'rightwardTTR'.
+    - feature_type (str, optional): Type of feature to call. Options are 'IZ' , 'rightwardTTR' or 'TZ'.
     """
     try:
         data = np.load(filename)
@@ -172,6 +213,8 @@ def main(filename, n_clusters=None, threshold=0.5,feature_type = 'IZ'):
             features = find_peaks(ArgMaxArr)        
         elif feature_type == 'rightwardTTR':
             features = find_rightward_slopes(ArgMaxArr)
+        elif feature_type == 'TZ':
+            features = find_valleys(ArgMaxArr)
         print(f"{feature_type} indices:", features)
         output_filename = os.path.splitext(filename)[0] + f"_{feature_type}Indices.npy"
         np.save(output_filename,np.array(features))
@@ -185,11 +228,11 @@ if __name__ == "__main__":
     parser.add_argument("filename", type=str, help="Path to the .npy file containing the input array.")
     parser.add_argument("--n_clusters", type=int, default=None, help="Number of clusters for Birch clustering.")
     parser.add_argument("--threshold", type=float, default=0.5, help="Threshold for Birch clustering.")
-    parser.add_argument("--feature_type", type=str, default='IZ', help="Features type to call, options are IZ, rightwardTTR.")
+    parser.add_argument("--feature_type", type=str, default='IZ', help="Features type to call, options are IZ, rightwardTTR, TZ.")
 
     args = parser.parse_args()
-    if args.feature_type not in ['IZ', 'rightwardTTR']:
-        print(f"Error: Invalid feature_type '{args.feature_type}'. Options are 'IZ' or 'rightwardTTR'.", file=sys.stderr)
+    if args.feature_type not in ['IZ', 'rightwardTTR','TZ']:
+        print(f"Error: Invalid feature_type '{args.feature_type}'. Options are 'IZ', 'rightwardTTR' or 'TZ'.", file=sys.stderr)
         sys.exit(1)
 
     main(args.filename, n_clusters=args.n_clusters, threshold=args.threshold, feature_type=args.feature_type)
