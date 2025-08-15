@@ -8,7 +8,7 @@ import numpy as np
 
 df = pd.concat([pd.read_table(f'mESCref_S{i}.bedgraph', header=None, index_col=[0,1,2]) for i in range(1,17)], axis=1)
 df = df[ (df.index.get_level_values(2) - df.index.get_level_values(1)) == 50000]
-def callFeature(chrom = 'chr1',threshold = 6,feature = 'IZ'):
+def callFeature(chrom = 'chr1',threshold = 6,feature = 'IZ',direction = None):
     _df = df.loc[chrom].sort_index(level=2)
     M = np.nan_to_num(_df.values).T
     M = make_array.scale(M)
@@ -65,9 +65,28 @@ def callFeature(chrom = 'chr1',threshold = 6,feature = 'IZ'):
             ] 
             for f in features 
         ]        
+    elif feature == 'TTR':
         
+        features = findFeatures.find_slopes(ArgMaxArr,direction = direction)   
+        calls = [
+            [
+                chrom,
+                _df.index[f[0]][0],  # start
+                _df.index[f[1]][1],  # end
+                get_time_label(np.min(np.where(M[:, f[0]] > threshold)[0]))
+            ]
+            if len(np.where(M[:, f[0]] > threshold)[0]) > 0 
+            else 
+            [
+                chrom,
+                _df.index[f[0]][0],  # start
+                _df.index[f[1]][1],  # end
+                get_time_label(np.min(np.where(M[:, f[1]+1] > threshold)[0]))
+            ] 
+            for f in features 
+        ]                
     else:
-        raise ValueError(f"Unimplemented feature type: '{feature}'. Expected 'IZ' or 'TZ'.")
+        raise ValueError(f"Unimplemented feature type: '{feature}'. Expected 'IZ', 'TTR' or 'TZ'.")
     
     return pd.DataFrame(calls)
 

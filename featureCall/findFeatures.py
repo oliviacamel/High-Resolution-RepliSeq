@@ -137,19 +137,21 @@ def find_valleys(ArgMaxArr):
     return plateaus
 
 
-def find_rightward_slopes(ArgMaxArr):
+def find_slopes(ArgMaxArr, direction = 'right'):
     """
-    Identifies rightward slopes in a 1D NumPy array.
+    Identifies slopes representing timing transition regions (TTRs).
     Parameters:
     - ArgMaxArr (array-like): Input 1D array representing the S phase fraction of max signal for a given genomic bin.
-
+    - direction (str): 'right' for rightward TTR, 'left' for leftward TTR
     Returns:
     - list: list of indices for rightward TTRs
     """
     ArgMaxArr = np.array(ArgMaxArr)  
     slopes = []
-    n = len(ArgMaxArr)
     
+    
+    n = len(ArgMaxArr)
+
     i = 0
     while i < n - 1:
         while i < n - 1 and ArgMaxArr[i] == ArgMaxArr[i + 1]:  
@@ -159,19 +161,21 @@ def find_rightward_slopes(ArgMaxArr):
 
         slope_start = i + 1
         while slope_start < n - 1:
-            if ArgMaxArr[slope_start] < ArgMaxArr[slope_start - 1]:  
+            if (direction == 'left' and ArgMaxArr[slope_start] > ArgMaxArr[slope_start - 1]) or \
+               (direction == 'right' and ArgMaxArr[slope_start]  < ArgMaxArr[slope_start - 1]):  
                 slope_start += 1
             #allowing breakages
             elif ArgMaxArr[slope_start] == ArgMaxArr[slope_start - 1]:  
                 temp = slope_start
                 while temp < n - 1 and ArgMaxArr[temp] == ArgMaxArr[temp + 1]:
                     temp += 1
-                if temp < n - 1 and ArgMaxArr[temp + 1] < ArgMaxArr[temp]:  
-                    slope_end = slope_start - 1
-                    if slope_end > left_slope_start:
-                        slopes.append([left_slope_start, slope_end])
-                    left_slope_start = temp 
-                    slope_start = temp + 1
+                if temp < n - 1 :
+                    if (direction == 'left' and ArgMaxArr[slope_start] > ArgMaxArr[slope_start - 1]) or \
+                       (direction == 'right' and ArgMaxArr[slope_start]  < ArgMaxArr[slope_start - 1]):  
+
+                        slope_start = temp + 1
+                    else:
+                        break
                 else:
                     break  
             else:
@@ -186,7 +190,7 @@ def find_rightward_slopes(ArgMaxArr):
     return slopes
 
 
-def main(filename, n_clusters=None, threshold=0.5,feature_type = 'IZ'):
+def main(filename, n_clusters=None, threshold=0.5,feature_type = 'IZ', direction=None ):
     """
     load data, perform Birch clustering, and find feature indices
 
@@ -194,7 +198,9 @@ def main(filename, n_clusters=None, threshold=0.5,feature_type = 'IZ'):
     - filename (str): Path to the .npy file containing the input array, assuming the array is a scaled repli-seq array for a single chromosome with shape (n Sphase fractions, genomic bins)
     - n_clusters (int, optional): Number of clusters for Birch clustering.
     - threshold (float, optional): Threshold for Birch clustering.
-    - feature_type (str, optional): Type of feature to call. Options are 'IZ' , 'rightwardTTR' or 'TZ'.
+    - feature_type (str, optional): Type of feature to call. Options are 'IZ' , 'TTR' or 'TZ'.
+    - direction (str, optional): Direction for TTR features. Options are 'right' or 'left'.
+    
     """
     try:
         data = np.load(filename)
@@ -211,8 +217,10 @@ def main(filename, n_clusters=None, threshold=0.5,feature_type = 'IZ'):
         # Find plateau peaks
         if feature_type == 'IZ':
             features = find_peaks(ArgMaxArr)        
-        elif feature_type == 'rightwardTTR':
-            features = find_rightward_slopes(ArgMaxArr)
+        elif feature_type == 'TTR':
+            features = find_slopes(ArgMaxArr)
+            if direction not in ['right','left' , None]:
+                raise ValueError('direction must be right, left, or None when feature_type is TTR')
         elif feature_type == 'TZ':
             features = find_valleys(ArgMaxArr)
         print(f"{feature_type} indices:", features)
@@ -228,11 +236,13 @@ if __name__ == "__main__":
     parser.add_argument("filename", type=str, help="Path to the .npy file containing the input array.")
     parser.add_argument("--n_clusters", type=int, default=None, help="Number of clusters for Birch clustering.")
     parser.add_argument("--threshold", type=float, default=0.5, help="Threshold for Birch clustering.")
-    parser.add_argument("--feature_type", type=str, default='IZ', help="Features type to call, options are IZ, rightwardTTR, TZ.")
-
+    parser.add_argument("--feature_type", type=str, default='IZ', help="Features type to call, options are IZ, TTR, TZ.")
+    parser.add_argument("--TTRdirection", type=str, default=None, help="TTR directions, options are right or left")
     args = parser.parse_args()
-    if args.feature_type not in ['IZ', 'rightwardTTR','TZ']:
-        print(f"Error: Invalid feature_type '{args.feature_type}'. Options are 'IZ', 'rightwardTTR' or 'TZ'.", file=sys.stderr)
+    if args.feature_type not in ['IZ', 'TTR','TZ']:
+        print(f"Error: Invalid feature_type '{args.feature_type}'. Options are 'IZ', 'TTR' or 'TZ'.", file=sys.stderr)
         sys.exit(1)
-
-    main(args.filename, n_clusters=args.n_clusters, threshold=args.threshold, feature_type=args.feature_type)
+    if args.feature_type == 'TTR' and args.TTRdirection not in [None, 'right', 'left']:
+        print(f"Error: Invalid TTRdirection '{args.TTRdirection}'. Options are 'right', 'left' or None.", file=sys.stderr)
+        sys.exit(1)
+    main(args.filename, n_clusters=args.n_clusters, threshold=args.threshold, feature_type=args.feature_type, direction = args.TTRdirection)
