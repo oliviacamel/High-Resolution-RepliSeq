@@ -68,28 +68,17 @@ ArgMaxArr = np.array([np.argmax(model.subcluster_centers_, axis=1)[i] * -1 for i
 features = HighResRepliSeq.findFeatures.find_peaks(ArgMaxArr)  
 # find TZs features = HighResRepliSeq.findFeatures.find_valleys(ArgMaxArr)  
 # find TTRs features = HighResRepliSeq.findFeatures.find_slopes(ArgMaxArr,direction = 'right') accepted direction:{'right','left'}
-
-calls = [
+calls = pd.DataFrame([
     [
         chrom,
         _df.index[f[0]][0],  # start
         _df.index[f[1]][1],  # end
         HighResRepliSeq.findFeatures.get_time_label(np.min(np.where(Arr[:, f[0]] > threshold)[0]))
     ]
-    if len(np.where(Arr[:, f[0]] > threshold)[0]) > 0
 
-    else
-
-    [
-        chrom,
-        _df.index[f[0]][0],  # start
-        _df.index[f[1]][1],  # end
-        HighResRepliSeq.findFeatures.get_time_label(np.min(np.where(Arr[:, f[1]+1] > threshold)[0]))
-    ]
     for f in features
-
-]
-
+    if len(np.where(Arr[:, f[0]] > threshold)[0]) > 0
+])
 ```
 
 ## command line usage examples
