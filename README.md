@@ -19,7 +19,7 @@ Here, I include high-res repli-seq data of
 ```python
 import HighResRepliSeq
 import pandas as pd
-#assuming the current directory contains bedgraph files, one for each S phase fractions, as follows:
+#assuming the current directory contains bedgraph files, one for each S phase fraction, as follows:
 #└── musAllele
 #    ├── mESCref_S1.bedgraph
 #    ├── mESCref_S10.bedgraph
@@ -75,7 +75,6 @@ calls = pd.DataFrame([
         _df.index[f[1]][1],  # end
         HighResRepliSeq.findFeatures.get_time_label(np.min(np.where(Arr[:, f[0]] > threshold)[0]))
     ]
-
     for f in features
     if len(np.where(Arr[:, f[0]] > threshold)[0]) > 0
 ])
