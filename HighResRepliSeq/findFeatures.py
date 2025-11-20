@@ -2,8 +2,6 @@ import numpy as np
 import argparse
 import sys
 import os
-
-
 def cluster_by_birch(array: np.ndarray, n_clusters: int = None, threshold: float = 0.5) -> np.ndarray:
     """
     Birch cluster a repli-seq array of shape (fractions, genomic bins).
@@ -60,10 +58,10 @@ def _emergingTime(arr, threshold):
 def find_peaks(ArgMaxArr):
     """
     Identifies plateau peaks in an index array of argmax of birch model subcluster centers
-    
+
     Parameters:
     - ArgMaxArr (array-like): Input 1D array representing the S phase fraction of max signal for a given genomic bin.
-    
+
     Returns:
     - list: list of indices for IZs
     """
@@ -100,10 +98,10 @@ def find_peaks(ArgMaxArr):
 def find_valleys(ArgMaxArr):
     """
     Identifies valleys in an index array of argmax of birch model subcluster centers
-    
+
     Parameters:
     - ArgMaxArr (array-like): Input 1D array representing the S phase fraction of max signal for a given genomic bin.
-    
+
     Returns:
     - list: list of indices for termination sites and zones
     """
@@ -146,49 +144,57 @@ def find_slopes(ArgMaxArr, direction = 'right'):
     Returns:
     - list: list of indices for rightward TTRs
     """
-    ArgMaxArr = np.array(ArgMaxArr)  
+    ArgMaxArr = np.array(ArgMaxArr)
     slopes = []
-    
-    
+
+
     n = len(ArgMaxArr)
 
     i = 0
     while i < n - 1:
-        while i < n - 1 and ArgMaxArr[i] == ArgMaxArr[i + 1]:  
+        while i < n - 1 and ArgMaxArr[i] == ArgMaxArr[i + 1]:
             i += 1
 
-        left_slope_start = i  
+        left_slope_start = i
 
         slope_start = i + 1
         while slope_start < n - 1:
             if (direction == 'left' and ArgMaxArr[slope_start] > ArgMaxArr[slope_start - 1]) or \
-               (direction == 'right' and ArgMaxArr[slope_start]  < ArgMaxArr[slope_start - 1]):  
+               (direction == 'right' and ArgMaxArr[slope_start]  < ArgMaxArr[slope_start - 1]):
                 slope_start += 1
             #allowing breakages
-            elif ArgMaxArr[slope_start] == ArgMaxArr[slope_start - 1]:  
+            elif ArgMaxArr[slope_start] == ArgMaxArr[slope_start - 1]:
                 temp = slope_start
                 while temp < n - 1 and ArgMaxArr[temp] == ArgMaxArr[temp + 1]:
                     temp += 1
                 if temp < n - 1 :
                     if (direction == 'left' and ArgMaxArr[slope_start] > ArgMaxArr[slope_start - 1]) or \
-                       (direction == 'right' and ArgMaxArr[slope_start]  < ArgMaxArr[slope_start - 1]):  
+                       (direction == 'right' and ArgMaxArr[slope_start]  < ArgMaxArr[slope_start - 1]):
 
                         slope_start = temp + 1
                     else:
                         break
                 else:
-                    break  
+                    break
             else:
-                break  
+                break
 
         slope_end = slope_start  -1
         if slope_end > left_slope_start:
             slopes.append([left_slope_start, slope_end])
 
-        i = slope_end + 1  
+        i = slope_end + 1
 
     return slopes
-
+    
+def get_time_label(S_frac):
+    if S_frac <= 2:
+        return 'early'
+    elif 2 < S_frac <= 5:
+        return 'earlymid'
+    elif 5 < S_frac <= 8:
+        return 'latemid'
+    return 'late'
 
 def main(filename, n_clusters=None, threshold=0.5,feature_type = 'IZ', direction=None ):
     """
@@ -200,7 +206,7 @@ def main(filename, n_clusters=None, threshold=0.5,feature_type = 'IZ', direction
     - threshold (float, optional): Threshold for Birch clustering.
     - feature_type (str, optional): Type of feature to call. Options are 'IZ' , 'TTR' or 'TZ'.
     - direction (str, optional): Direction for TTR features. Options are 'right' or 'left'.
-    
+
     """
     try:
         data = np.load(filename)
@@ -216,7 +222,7 @@ def main(filename, n_clusters=None, threshold=0.5,feature_type = 'IZ', direction
 
         # Find plateau peaks
         if feature_type == 'IZ':
-            features = find_peaks(ArgMaxArr)        
+            features = find_peaks(ArgMaxArr)
         elif feature_type == 'TTR':
             features = find_slopes(ArgMaxArr)
             if direction not in ['right','left' , None]:

@@ -49,9 +49,47 @@ for chrom in [f'chr{i}' for i in range(1,20)]: #we are only looking at autosomes
         [(chrom, start, end) for start, end in _df.index],
         names=['chrom', 'start', 'end']), columns=[f'S{i}' for i in range(1, 17)]
     )
-  processed_df .append(_df)
+  processed_df.append(_df)
 df = pd.concat(processed_df, axis=0)
 df.to_csv('mESCrefAllele_highresrepliseq_processedArray.csv')
+```
+### 2. call initiation zones (IZs), termination zones (TZs) and timing transition regions (TTRs) from data
+```python
+import numpy as np
+chrom = 'chr1'
+threshold = 6 #define the minimum percentage of replication to assign timing e.g. an IZ needs at least 6%, the threshold defined here, of replication in the first quarter of S phase to be assigned as an 'early IZ'.
+#use birch clustering to cluster genomic bins according to their replication profile
+_df = df.loc[chrom]
+Arr = _df.values.T
+model = HighResRepliSeq.findFeatures.cluster_by_birch(Arr)
+#make array of clustering result
+ArgMaxArr = np.array([np.argmax(model.subcluster_centers_, axis=1)[i] * -1 for i in model.labels_[:]])
+#find IZs
+features = HighResRepliSeq.findFeatures.find_peaks(ArgMaxArr)  
+# find TZs features = HighResRepliSeq.findFeatures.find_valleys(ArgMaxArr)  
+# find TTRs features = HighResRepliSeq.findFeatures.find_slopes(ArgMaxArr,direction = 'right') accepted direction:{'right','left'}
+
+calls = [
+    [
+        chrom,
+        _df.index[f[0]][0],  # start
+        _df.index[f[1]][1],  # end
+        HighResRepliSeq.findFeatures.get_time_label(np.min(np.where(Arr[:, f[0]] > threshold)[0]))
+    ]
+    if len(np.where(Arr[:, f[0]] > threshold)[0]) > 0
+
+    else
+
+    [
+        chrom,
+        _df.index[f[0]][0],  # start
+        _df.index[f[1]][1],  # end
+        HighResRepliSeq.findFeatures.get_time_label(np.min(np.where(Arr[:, f[1]+1] > threshold)[0]))
+    ]
+    for f in features
+
+]
 
 ```
+
 ## command line usage examples
