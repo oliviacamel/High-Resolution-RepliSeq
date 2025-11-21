@@ -2,6 +2,7 @@ import numpy as np
 import argparse
 import sys
 import os
+import pandas as pd
 def cluster_by_birch(array: np.ndarray, n_clusters: int = None, threshold: float = 0.5) -> np.ndarray:
     """
     Birch cluster a repli-seq array of shape (fractions, genomic bins).
@@ -186,7 +187,7 @@ def find_slopes(ArgMaxArr, direction = 'right'):
         i = slope_end + 1
 
     return slopes
-    
+
 def get_time_label(S_frac):
     if S_frac <= 2:
         return 'early'
@@ -201,7 +202,7 @@ def main(filename, n_clusters=None, threshold=0.5,feature_type = 'IZ', direction
     load data, perform Birch clustering, and find feature indices
 
     Parameters:
-    - filename (str): Path to the .npy file containing the input array, assuming the array is a scaled repli-seq array for a single chromosome with shape (n Sphase fractions, genomic bins)
+    - filename (str): Path to the .csv file containing the input array, assuming the array is a scaled repli-seq array for a single chromosome with shape (n Sphase fractions, genomic bins)
     - n_clusters (int, optional): Number of clusters for Birch clustering.
     - threshold (float, optional): Threshold for Birch clustering.
     - feature_type (str, optional): Type of feature to call. Options are 'IZ' , 'TTR' or 'TZ'.
@@ -209,37 +210,56 @@ def main(filename, n_clusters=None, threshold=0.5,feature_type = 'IZ', direction
 
     """
     try:
-        data = np.load(filename)
-        data = np.nan_to_num(data).copy()
+        try:
+            df = pd.read_csv(filename,index_col = ['chrom','start','end'])
+        except KeyError as e:
+            df = pd.read_csv(filename)
+            available_cols = list(df.columns)
+            raise KeyError (f"One or more index columns not found. Required: ['chrom', 'start', 'end']. Available: {available_cols}") from e
+        chroms = df.index.get_level_values(0).drop_duplicates()
+        feature_list = []
+        for chrom in chroms:
+            _df = df.loc[chrom]
+            Arr = _df.values.T
+            # Perform Birch clustering
+            model = cluster_by_birch(Arr,n_clusters = n_clusters, threshold= threshold)
+            # Extract argmax indices from subcluster centers
+            ArgMaxArr = np.array([np.argmax(model.subcluster_centers_, axis=1)[i] * -1 for i in model.labels_[:]])
+            
+            if model is None:
+                raise RuntimeError("Birch clustering failed.")
 
-        # Perform Birch clustering
-        model = cluster_by_birch(data, n_clusters=n_clusters, threshold=threshold)
-        if model is None:
-            raise RuntimeError("Birch clustering failed.")
-
-        # Extract argmax indices from subcluster centers
-        ArgMaxArr = np.array([np.argmax(model.subcluster_centers_, axis=1)[i] * -1 for i in model.labels_[:]])
-
-        # Find plateau peaks
-        if feature_type == 'IZ':
-            features = find_peaks(ArgMaxArr)
-        elif feature_type == 'TTR':
-            features = find_slopes(ArgMaxArr)
-            if direction not in ['right','left' , None]:
-                raise ValueError('direction must be right, left, or None when feature_type is TTR')
-        elif feature_type == 'TZ':
-            features = find_valleys(ArgMaxArr)
-        print(f"{feature_type} indices:", features)
-        output_filename = os.path.splitext(filename)[0] + f"_{feature_type}Indices.npy"
-        np.save(output_filename,np.array(features))
-        print(f"Plateau indices written to {output_filename}")
+    
+            # Find plateau peaks
+            if feature_type == 'IZ':
+                features = find_peaks(ArgMaxArr)
+            elif feature_type == 'TTR':
+                features = find_slopes(ArgMaxArr)
+                if direction not in ['right','left' , None]:
+                    raise ValueError('direction must be right, left, or None when feature_type is TTR')
+            elif feature_type == 'TZ':
+                features = find_valleys(ArgMaxArr)
+            calls = pd.DataFrame([
+                [
+                    chrom,
+                _df.index[f[0]][0],  # start
+                _df.index[f[1]][1],  # end
+                get_time_label(np.argmax(Arr[:,f[0]]))
+                ]
+                for f in features
+                if len(np.where(Arr[:,f[0]] == 0)[0]) == 0
+                ])
+            feature_list.append(calls)
+        output_filename = os.path.splitext(filename)[0] + (f"_{feature_type}.csv" if direction is None else f"_{direction}_{feature_type}.csv")       
+        pd.concat(feature_list).to_csv(output_filename,index=None,header=None)
+        print(f"features written to {output_filename}")
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Perform Birch clustering and identify replication features in a scaled and normed Repli-seq array.")
-    parser.add_argument("filename", type=str, help="Path to the .npy file containing the input array.")
+    parser = argparse.ArgumentParser(description="Perform Birch clustering and identify replication features for a Gaussian smoothed and column normalised Repli-seq array.")
+    parser.add_argument("filename", type=str, help="Path to the .csv file containing the input array.")
     parser.add_argument("--n_clusters", type=int, default=None, help="Number of clusters for Birch clustering.")
     parser.add_argument("--threshold", type=float, default=0.5, help="Threshold for Birch clustering.")
     parser.add_argument("--feature_type", type=str, default='IZ', help="Features type to call, options are IZ, TTR, TZ.")

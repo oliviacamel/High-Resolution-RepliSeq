@@ -79,3 +79,7 @@ calls = pd.DataFrame([
 ```
 
 ## command line usage examples
+Feature types listed above (IZs, TZs and TTRs) can also be computed from command line. Use the command below in bash to access the help function.
+```bash
+python HighResRepliSeq/findFeatures.py -h
+```
