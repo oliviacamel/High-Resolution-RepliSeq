@@ -57,8 +57,6 @@ df.to_csv('mESCrefAllele_highresrepliseq_processedArray.csv')
 ```python
 import numpy as np
 chrom = 'chr1'
-threshold = 6 #define the minimum percentage of replication to assign timing e.g. an IZ needs at least 6%, the threshold defined here, of replication in the first quarter of S phase to be assigned as an 'early IZ'.
-#use birch clustering to cluster genomic bins according to their replication profile
 _df = df.loc[chrom]
 Arr = _df.values.T
 model = HighResRepliSeq.findFeatures.cluster_by_birch(Arr)
@@ -73,10 +71,10 @@ calls = pd.DataFrame([
         chrom,
         _df.index[f[0]][0],  # start
         _df.index[f[1]][1],  # end
-        HighResRepliSeq.findFeatures.get_time_label(np.min(np.where(Arr[:, f[0]] > threshold)[0]))
+        HighResRepliSeq.findFeatures.get_time_label(np.argmax(Arr[:,f[0]]))
     ]
     for f in features
-    if len(np.where(Arr[:, f[0]] > threshold)[0]) > 0
+    if len(np.where(Arr[:,f[0]] == 0)[0]) == 0
 ])
 ```
 
